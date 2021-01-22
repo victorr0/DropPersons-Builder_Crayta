@@ -1,0 +1,102 @@
+local DropPersonsTileScript = {}
+
+-- Script properties are defined here
+DropPersonsTileScript.Properties = {
+	-- Example property
+	{ name = "mainTileEntity", type = "entity", tooltip = "The entity itself, equivalent of Self:GetEntity", editableInBasicMode=false},
+	{ name = "mainTileMesh", type = "voxelmeshasset", tooltip = "Tile mesh to change from. Original tile mesh of the tile entity before activation", editable=false},
+	{ name = "altTileMesh", type = "voxelmeshasset", tooltip = "Tile to change to. Aternative tile mesh to show when stepped on", editable=false},
+	{ name = "tileTriggerbox", type = "entity", tooltip = "The triggerbox for this tile", editable=false},
+	{ name = "tileChangeSound", type = "soundasset", tooltip = "Sound played when tile is first activated", },
+	{ name = "tileDestroySound", type = "soundasset", tooltip = "Ssound played when tile disappears", },
+	{ name = "tileDestroyDelay", type = "number", default = 6, tooltip = "How long to pause before destroying the tile", },
+	{ name = "TriggerTile", type="event",editable=false},
+	{ name = "givePoints",type = "boolean", tooltip = "Check this if the player should get points for every tile they break",},
+	{ name = "tilePoints", type = "number", default = 1, tooltip = "How many points the player", visibleIf = function(p) return p.givePoints end,},
+}
+
+function DropPersonsTileScript:Init()
+	-- At Start the tile's variables are initialized
+	self.mainTileEntity = self:GetEntity()
+	self.mainTileMesh = self.properties.mainTileMesh
+	self.altTileMesh = self.properties.altTileMesh
+	self.trigger = self.properties.tileTriggerbox
+	
+	-- Set the states (not activated, but visible and collidable)	
+	self:SetUpTile()
+
+
+end
+
+function DropPersonsTileScript:SetUpTile()
+	-- Prepare the Tile (Reset or Set up)
+	-- The expected setup tile can be seen, collided with and has an active trigger
+	
+		--printf("SetupTile summary\nActiveL: {1}\nCollide: {2}\nVisible: {3}\nName: {4}", self.isActivatedTile, self.mainTileEntity.visible, self.mainTileEntity.mesh.visible, self.mainTileEntity:GetName())
+	self.isActivatedTile = false		
+	self.mainTileEntity.visible = true
+	self.mainTileEntity.collisionEnabled = true
+	self.trigger.active = true
+end
+
+
+function DropPersonsTileScript:UnsetTile()
+	-- Recycle the Tile and don't show a trace
+	-- Instead of calling :Destroy() on the tile, make it invisble/non-active.
+	-- The expected tile can now not be seen, collided with and has an inactive trigger
+	self.isActivatedTile = false
+	self.mainTileEntity.visible = false		
+	self.mainTileEntity.mesh = self.properties.mainTileMesh
+	self.mainTileEntity.visible = false		
+	self.mainTileEntity.collisionEnabled = false
+	self.trigger.active = false
+end
+
+
+
+function DropPersonsTileScript:TriggerTile(player)
+		-- First check if this is a fresh tile that has not been activated/triggered
+	if not self.isActivatedTile then
+
+		-- Then check who entered the tile trigger and if they are an alive player
+		if player == "noplayer" then
+		
+		else
+		
+		if player:IsA(Character) and player:IsAlive() then
+
+			-- If points are enabled reward them here
+			if self.properties.givePoints and player ~= "noplayer" then
+				player:GetUser():SendToScripts("AddScore", self.properties.tilePoints)
+			end
+		end
+			-- Then it's time to change its state to activated
+			self.isActivatedTile = true
+			
+
+			--   Then start the schedule which waits until the tile needs to disappear.
+			self:Schedule(function()
+
+				Wait(0.1)
+				-- Start the change-sound
+				self.mainTileEntity:PlaySound(self.properties.tileChangeSound,1)
+
+				-- Change the main tile's mesh to the Alternative mesh
+				self.mainTileEntity.mesh = self.altTileMesh
+
+				--Wait as long as needed
+				Wait(self.properties.tileDestroyDelay)
+
+				-- Then Unset the Tile
+				self.mainTileEntity:PlaySound(self.properties.tileDestroySound,1)
+				self:UnsetTile()
+
+			end )
+
+		end
+
+	end
+
+end
+
+return DropPersonsTileScript
